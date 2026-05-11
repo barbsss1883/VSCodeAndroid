@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.drawerlayout.widget.DrawerLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawer_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Main Content -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- Toolbar -->
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/toolbar_bg"
+            android:minHeight="?attr/actionBarSize"
+            app:titleTextColor="@color/toolbar_text"
+            app:subtitleTextColor="@color/toolbar_subtitle">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:gravity="end"
+                android:orientation="horizontal">
+
+                <ImageButton
+                    android:id="@+id/btn_undo"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Undo"
+                    android:src="@drawable/ic_undo"
+                    android:tint="@color/toolbar_icon" />
+
+                <ImageButton
+                    android:id="@+id/btn_redo"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Redo"
+                    android:src="@drawable/ic_redo"
+                    android:tint="@color/toolbar_icon" />
+
+                <ImageButton
+                    android:id="@+id/btn_search"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Search"
+                    android:src="@drawable/ic_search"
+                    android:tint="@color/toolbar_icon" />
+
+                <ImageButton
+                    android:id="@+id/btn_save"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Save"
+                    android:src="@drawable/ic_save"
+                    android:tint="@color/toolbar_icon" />
+
+                <ImageButton
+                    android:id="@+id/btn_settings"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Settings"
+                    android:src="@drawable/ic_settings"
+                    android:tint="@color/toolbar_icon" />
+
+                <ImageButton
+                    android:id="@+id/btn_terminal"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Terminal"
+                    android:src="@drawable/ic_terminal"
+                    android:tint="@color/toolbar_icon" />
+
+                <ImageButton
+                    android:id="@+id/btn_extensions"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Extensions"
+                    android:src="@drawable/ic_extensions"
+                    android:tint="@color/toolbar_icon" />
+            </LinearLayout>
+        </androidx.appcompat.widget.Toolbar>
+
+        <!-- Tabs Bar -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_tabs"
+            android:layout_width="match_parent"
+            android:layout_height="38dp"
+            android:background="@color/tabs_bg"
+            android:visibility="gone" />
+
+        <!-- Editor Area -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <WebView
+                android:id="@+id/editor_web_view"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tv_editor_placeholder"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="Open a folder or file to start editing"
+                android:textColor="@color/placeholder_text"
+                android:textSize="16sp"
+                android:background="@color/editor_bg" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <!-- Navigation Drawer (File Explorer) -->
+    <LinearLayout
+        android:layout_width="280dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:background="@color/explorer_bg"
+        android:orientation="vertical">
+
+        <!-- Explorer Header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/explorer_header_bg"
+            android:orientation="vertical"
+            android:paddingTop="8dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="EXPLORER"
+                android:textColor="@color/explorer_header_text"
+                android:textSize="11sp"
+                android:letterSpacing="0.1"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="4dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="end"
+                android:paddingEnd="4dp"
+                android:paddingBottom="4dp"
+                android:orientation="horizontal">
+
+                <ImageButton
+                    android:id="@+id/btn_new_file"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="New File"
+                    android:src="@drawable/ic_new_file"
+                    android:tint="@color/explorer_icon" />
+
+                <ImageButton
+                    android:id="@+id/btn_new_folder"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="New Folder"
+                    android:src="@drawable/ic_new_folder"
+                    android:tint="@color/explorer_icon" />
+
+                <ImageButton
+                    android:id="@+id/btn_refresh"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Refresh"
+                    android:src="@drawable/ic_refresh"
+                    android:tint="@color/explorer_icon" />
+
+                <ImageButton
+                    android:id="@+id/btn_open_folder"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Open Folder"
+                    android:src="@drawable/ic_folder_open"
+                    android:tint="@color/explorer_icon" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- File Tree -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_files"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false" />
+
+        <TextView
+            android:id="@+id/tv_empty_explorer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:padding="16dp"
+            android:text="No folder opened\nTap the folder icon to open one"
+            android:textAlignment="center"
+            android:textColor="@color/placeholder_text"
+            android:textSize="13sp"
+            android:visibility="visible" />
+    </LinearLayout>
+</androidx.drawerlayout.widget.DrawerLayout>

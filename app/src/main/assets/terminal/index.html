@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Terminal</title>
+    <link rel="stylesheet" href="file:///android_asset/terminal/xterm.min.css"/>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            width: 100%;
+            height: 100%;
+            background: #1e1e1e;
+            overflow: hidden;
+        }
+        #terminal {
+            width: 100%;
+            height: 100%;
+        }
+        .xterm {
+            padding: 4px 8px;
+        }
+        #loading {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #1e1e1e;
+            color: #4ec9b0;
+            font-family: monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">Iniciando terminal...</div>
+    <div id="terminal"></div>
+
+    <script src="file:///android_asset/terminal/xterm.min.js"></script>
+    <script src="file:///android_asset/terminal/xterm-addon-fit.min.js"></script>
+    <script src="file:///android_asset/terminal/xterm-addon-web-links.min.js"></script>
+
+    <script>
+        var term = new Terminal({
+            theme: {
+                background: '#1e1e1e',
+                foreground: '#d4d4d4',
+                cursor:     '#d4d4d4',
+                cursorAccent: '#1e1e1e',
+                black:      '#1e1e1e',
+                red:        '#f44747',
+                green:      '#6a9955',
+                yellow:     '#d7ba7d',
+                blue:       '#569cd6',
+                magenta:    '#c586c0',
+                cyan:       '#4ec9b0',
+                white:      '#d4d4d4',
+                brightBlack:   '#808080',
+                brightRed:     '#f44747',
+                brightGreen:   '#b5cea8',
+                brightYellow:  '#dcdcaa',
+                brightBlue:    '#9cdcfe',
+                brightMagenta: '#c586c0',
+                brightCyan:    '#4ec9b0',
+                brightWhite:   '#ffffff',
+                selectionBackground: '#264f78'
+            },
+            fontSize: 13,
+            fontFamily: "'JetBrains Mono', 'Fira Code', 'Courier New', monospace",
+            cursorBlink: true,
+            cursorStyle: 'block',
+            scrollback: 5000,
+            tabStopWidth: 4,
+            convertEol: true,
+            allowProposedApi: true
+        });
+
+        var fitAddon = new FitAddon.FitAddon();
+        var webLinksAddon = new WebLinksAddon.WebLinksAddon();
+
+        term.loadAddon(fitAddon);
+        term.loadAddon(webLinksAddon);
+
+        term.open(document.getElementById('terminal'));
+        document.getElementById('loading').style.display = 'none';
+
+        function doFit() {
+            try { fitAddon.fit(); } catch(e) {}
+        }
+        doFit();
+
+        term.onData(function(data) {
+            try { AndroidTerminal.sendInput(data); } catch(e) {}
+        });
+
+        term.onResize(function(size) {
+            try { AndroidTerminal.onResize(size.cols, size.rows); } catch(e) {}
+        });
+
+        window.addEventListener('resize', doFit);
+
+        function receiveOutput(text) {
+            if (text) term.write(text);
+        }
+
+        try { AndroidTerminal.log('xterm.js ready'); } catch(e) {}
+    </script>
+</body>
+</html>
