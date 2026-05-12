@@ -2,10 +2,11 @@
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="28dp"
+    android:layout_height="26dp"
     android:background="?attr/selectableItemBackground"
     android:gravity="center_vertical"
-    android:orientation="horizontal">
+    android:orientation="horizontal"
+    android:paddingEnd="8dp">
 
     <View
         android:id="@+id/v_indent"
@@ -14,10 +15,10 @@
 
     <ImageView
         android:id="@+id/iv_arrow"
-        android:layout_width="16dp"
-        android:layout_height="16dp"
+        android:layout_width="14dp"
+        android:layout_height="14dp"
         android:src="@drawable/ic_arrow_right"
-        android:tint="@color/explorer_text"
+        android:tint="@color/explorer_icon"
         android:visibility="gone" />
 
     <ImageView
@@ -37,4 +38,13 @@
         android:maxLines="1"
         android:textColor="@color/explorer_text"
         android:textSize="13sp" />
+
+    <!-- Modified indicator dot -->
+    <View
+        android:id="@+id/v_file_modified"
+        android:layout_width="6dp"
+        android:layout_height="6dp"
+        android:layout_marginStart="4dp"
+        android:background="@drawable/dot_modified"
+        android:visibility="gone" />
 </LinearLayout>

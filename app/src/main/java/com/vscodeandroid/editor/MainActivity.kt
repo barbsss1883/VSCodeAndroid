@@ -7,8 +7,11 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.DocumentsContract
+import android.provider.Settings
 import android.view.MenuItem
 import android.view.View
+import android.widget.EditText
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.ActionBarDrawerToggle
@@ -26,11 +29,6 @@ import com.vscodeandroid.editor.models.FileItem
 import com.vscodeandroid.editor.terminal.TerminalActivity
 import com.vscodeandroid.editor.utils.FileUtils
 import java.io.File
-import android.Manifest
-import android.content.pm.PackageManager
-import android.widget.Toast
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -41,18 +39,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var editorBridge: EditorBridge
 
     companion object {
-        private const val REQUEST_STORAGE_PERMISSION = 100
-    }
-
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val granted = permissions.values.all { it }
-        if (granted) {
-            openFolderPicker()
-        } else {
-            Toast.makeText(this, "Se necesita permiso de almacenamiento para abrir carpetas", Toast.LENGTH_LONG).show()
-        }
+        private const val REQUEST_MANAGE_STORAGE = 200
     }
 
     private val openFolderLauncher = registerForActivityResult(
@@ -65,7 +52,11 @@ class MainActivity : AppCompatActivity() {
                     Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                 )
                 val path = getRealPathFromUri(uri)
-                if (path != null) viewModel.openFolder(File(path))
+                if (path != null) {
+                    viewModel.openFolder(File(path))
+                } else {
+                    Toast.makeText(this, "No se pudo acceder a esa carpeta", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -161,18 +152,30 @@ class MainActivity : AppCompatActivity() {
     private fun setupObservers() {
         viewModel.fileItems.observe(this) { items ->
             fileAdapter.updateItems(items)
-            binding.tvEmptyExplorer.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
+            val isEmpty = items.isEmpty()
+            binding.tvEmptyExplorer.visibility = if (isEmpty) View.VISIBLE else View.GONE
+            // Show folder name in explorer header
+            val lastPath = viewModel.getLastOpenedPath()
+            if (lastPath != null && !isEmpty) {
+                binding.tvFolderName.text = File(lastPath).name.uppercase()
+                binding.tvFolderName.visibility = View.VISIBLE
+                binding.tvStatusBranch.text = File(lastPath).name
+            } else {
+                binding.tvFolderName.visibility = View.GONE
+                binding.tvStatusBranch.text = "Sin carpeta"
+            }
         }
 
         viewModel.tabs.observe(this) { tabs ->
             val activeId = viewModel.activeTab.value?.id ?: ""
             tabAdapter.setTabs(tabs, activeId)
-            binding.rvTabs.visibility = if (tabs.isEmpty()) View.GONE else View.VISIBLE
+            val hasTabs = tabs.isNotEmpty()
+            binding.rvTabs.visibility = if (hasTabs) View.VISIBLE else View.GONE
+            binding.vTabsBorder.visibility = if (hasTabs) View.VISIBLE else View.GONE
         }
 
         viewModel.activeTab.observe(this) { tab ->
             if (tab != null) {
-                val settings = viewModel.settings.value
                 val js = """
                     setEditorContent(
                         ${escapeJsonString(tab.content)},
@@ -184,10 +187,14 @@ class MainActivity : AppCompatActivity() {
                 binding.tvEditorPlaceholder.visibility = View.GONE
                 binding.editorWebView.visibility = View.VISIBLE
                 supportActionBar?.subtitle = tab.file.name
+                // Update status bar
+                binding.tvStatusLang.text = tab.language.uppercase()
+                binding.tvStatusEncoding.text = "UTF-8"
             } else {
                 binding.tvEditorPlaceholder.visibility = View.VISIBLE
                 binding.editorWebView.visibility = View.GONE
                 supportActionBar?.subtitle = null
+                binding.tvStatusLang.text = ""
             }
             val activeId = tab?.id ?: ""
             val tabs = viewModel.tabs.value ?: emptyList()
@@ -448,23 +455,104 @@ class MainActivity : AppCompatActivity() {
 
     private fun openFolderPicker() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Android 11+: use MANAGE_EXTERNAL_STORAGE or go directly with SAF
-            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-            openFolderLauncher.launch(intent)
-        } else {
-            // Android 6-10: request READ/WRITE_EXTERNAL_STORAGE at runtime
-            val readGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
-            val writeGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
-            if (readGranted && writeGranted) {
-                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-                openFolderLauncher.launch(intent)
+            if (Environment.isExternalStorageManager()) {
+                showFolderPickerDialog()
             } else {
-                requestPermissionLauncher.launch(
-                    arrayOf(
-                        Manifest.permission.READ_EXTERNAL_STORAGE,
-                        Manifest.permission.WRITE_EXTERNAL_STORAGE
-                    )
-                )
+                // Ask for MANAGE_EXTERNAL_STORAGE — one time, full access
+                MaterialAlertDialogBuilder(this)
+                    .setTitle("Permiso de almacenamiento")
+                    .setMessage("Para acceder a tus archivos, VSCode Android necesita permiso de administrador de almacenamiento.\n\nEn la siguiente pantalla, activa \"Permitir acceso a todos los archivos\".")
+                    .setPositiveButton("Continuar") { _, _ ->
+                        val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                            data = Uri.parse("package:$packageName")
+                        }
+                        startActivityForResult(intent, REQUEST_MANAGE_STORAGE)
+                    }
+                    .setNegativeButton("Cancelar", null)
+                    .show()
+            }
+        } else {
+            showFolderPickerDialog()
+        }
+    }
+
+    private fun showFolderPickerDialog() {
+        val storage = Environment.getExternalStorageDirectory()
+        val home = storage.absolutePath
+
+        val quickPaths = mutableListOf<Pair<String, String>>()
+        quickPaths.add(Pair("📁  Almacenamiento interno", home))
+
+        // Common dev folders
+        listOf("Projects", "projects", "Dev", "dev", "Code", "code", "repos", "Repos").forEach { name ->
+            val f = File(home, name)
+            if (f.exists() && f.isDirectory) quickPaths.add(Pair("📂  $name", f.absolutePath))
+        }
+
+        // Downloads, Documents
+        File(home, "Download").takeIf { it.exists() }?.let { quickPaths.add(Pair("⬇️  Descargas", it.absolutePath)) }
+        File(home, "Documents").takeIf { it.exists() }?.let { quickPaths.add(Pair("📄  Documentos", it.absolutePath)) }
+
+        quickPaths.add(Pair("✏️  Escribir ruta manualmente...", "__manual__"))
+        quickPaths.add(Pair("🗂️  Selector del sistema...", "__saf__"))
+
+        val labels = quickPaths.map { it.first }.toTypedArray()
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Abrir carpeta")
+            .setItems(labels) { _, which ->
+                val (_, path) = quickPaths[which]
+                when (path) {
+                    "__manual__" -> showManualPathDialog()
+                    "__saf__" -> {
+                        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+                        openFolderLauncher.launch(intent)
+                    }
+                    else -> {
+                        val folder = File(path)
+                        if (folder.exists() && folder.canRead()) {
+                            viewModel.openFolder(folder)
+                            binding.drawerLayout.closeDrawer(GravityCompat.START)
+                        } else {
+                            Toast.makeText(this, "No se puede acceder a: $path", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+            .show()
+    }
+
+    private fun showManualPathDialog() {
+        val input = EditText(this).apply {
+            hint = "/storage/emulated/0/MiProyecto"
+            setText(viewModel.getLastOpenedPath() ?: "/storage/emulated/0/")
+            setSelectAllOnFocus(true)
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Escribir ruta")
+            .setView(input)
+            .setPositiveButton("Abrir") { _, _ ->
+                val path = input.text.toString().trim()
+                val folder = File(path)
+                if (folder.exists() && folder.isDirectory) {
+                    viewModel.openFolder(folder)
+                    binding.drawerLayout.closeDrawer(GravityCompat.START)
+                } else {
+                    Toast.makeText(this, "Ruta no válida o no existe", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    @Suppress("OVERRIDE_DEPRECATION")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_MANAGE_STORAGE) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
+                showFolderPickerDialog()
+            } else {
+                Toast.makeText(this, "Permiso no otorgado. Puedes usar el selector del sistema.", Toast.LENGTH_LONG).show()
             }
         }
     }

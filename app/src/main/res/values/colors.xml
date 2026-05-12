@@ -1,36 +1,56 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- VS Code Dark Theme Colors -->
+    <!-- VS Code Dark Theme — Enhanced -->
     <color name="toolbar_bg">#1E1E1E</color>
     <color name="toolbar_text">#CCCCCC</color>
     <color name="toolbar_subtitle">#858585</color>
     <color name="toolbar_icon">#CCCCCC</color>
+    <color name="toolbar_border">#333333</color>
 
     <color name="explorer_bg">#252526</color>
-    <color name="explorer_header_bg">#252526</color>
+    <color name="explorer_header_bg">#1E1E1E</color>
     <color name="explorer_header_text">#BBBBBB</color>
     <color name="explorer_text">#CCCCCC</color>
     <color name="explorer_icon">#C5C5C5</color>
+    <color name="explorer_item_hover">#2A2D2E</color>
+    <color name="explorer_item_selected">#094771</color>
+    <color name="explorer_border">#3C3C3C</color>
 
-    <color name="tabs_bg">#2D2D2D</color>
+    <color name="tabs_bg">#252526</color>
     <color name="tab_active_bg">#1E1E1E</color>
     <color name="tab_inactive_bg">#2D2D2D</color>
     <color name="tab_active_text">#FFFFFF</color>
     <color name="tab_inactive_text">#969696</color>
     <color name="tab_close_icon">#CCCCCC</color>
+    <color name="tab_active_border">#0078D4</color>
 
     <color name="editor_bg">#1E1E1E</color>
     <color name="placeholder_text">#6B6B6B</color>
 
+    <color name="statusbar_bg">#007ACC</color>
+    <color name="statusbar_text">#FFFFFF</color>
+
     <color name="accent">#0078D4</color>
+    <color name="accent_hover">#1A8AD4</color>
     <color name="modified_dot">#E8A948</color>
 
+    <!-- File icon colors -->
+    <color name="icon_js">#F7DF1E</color>
+    <color name="icon_ts">#3178C6</color>
+    <color name="icon_py">#3572A5</color>
+    <color name="icon_kt">#7F52FF</color>
+    <color name="icon_java">#B07219</color>
+    <color name="icon_html">#E34C26</color>
+    <color name="icon_css">#563D7C</color>
+    <color name="icon_json">#CBA135</color>
+    <color name="icon_xml">#F16529</color>
+    <color name="icon_md">#083FA1</color>
+    <color name="icon_sh">#4EAA25</color>
+    <color name="icon_default">#858585</color>
+    <color name="icon_folder">#DCB67A</color>
+    <color name="icon_folder_open">#DCB67A</color>
+
     <!-- Material -->
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 </resources>

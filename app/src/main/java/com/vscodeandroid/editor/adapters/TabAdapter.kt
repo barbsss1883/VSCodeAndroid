@@ -21,6 +21,7 @@ class TabAdapter(
         val name: TextView = view.findViewById(R.id.tv_tab_name)
         val close: ImageButton = view.findViewById(R.id.btn_tab_close)
         val dot: View = view.findViewById(R.id.v_modified_dot)
+        val activeIndicator: View = view.findViewById(R.id.v_tab_active_indicator)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TabViewHolder {
@@ -37,8 +38,10 @@ class TabAdapter(
         val isActive = tab.id == activeTabId
         val bgColor = if (isActive) R.color.tab_active_bg else R.color.tab_inactive_bg
         val textColor = if (isActive) R.color.tab_active_text else R.color.tab_inactive_text
+
         holder.itemView.setBackgroundColor(ContextCompat.getColor(holder.itemView.context, bgColor))
         holder.name.setTextColor(ContextCompat.getColor(holder.itemView.context, textColor))
+        holder.activeIndicator.visibility = if (isActive) View.VISIBLE else View.GONE
 
         holder.itemView.setOnClickListener { onTabClick(tab) }
         holder.close.setOnClickListener { onTabClose(tab) }
@@ -51,20 +54,5 @@ class TabAdapter(
         tabs.addAll(newTabs)
         activeTabId = activeId
         notifyDataSetChanged()
-    }
-
-    fun addTab(tab: EditorTab) {
-        if (tabs.none { it.id == tab.id }) {
-            tabs.add(tab)
-            notifyItemInserted(tabs.size - 1)
-        }
-    }
-
-    fun removeTab(tab: EditorTab) {
-        val idx = tabs.indexOfFirst { it.id == tab.id }
-        if (idx >= 0) {
-            tabs.removeAt(idx)
-            notifyItemRemoved(idx)
-        }
     }
 }

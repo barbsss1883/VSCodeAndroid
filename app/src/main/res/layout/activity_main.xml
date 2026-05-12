@@ -16,9 +16,9 @@
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="?attr/actionBarSize"
             android:background="@color/toolbar_bg"
-            android:minHeight="?attr/actionBarSize"
+            android:elevation="0dp"
             app:titleTextColor="@color/toolbar_text"
             app:subtitleTextColor="@color/toolbar_subtitle">
 
@@ -94,18 +94,33 @@
             </LinearLayout>
         </androidx.appcompat.widget.Toolbar>
 
+        <!-- Toolbar bottom border -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/toolbar_border" />
+
         <!-- Tabs Bar -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_tabs"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="36dp"
             android:background="@color/tabs_bg"
+            android:visibility="gone" />
+
+        <!-- Tabs bottom border -->
+        <View
+            android:id="@+id/v_tabs_border"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/toolbar_border"
             android:visibility="gone" />
 
         <!-- Editor Area -->
         <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="0dp"
+            android:layout_weight="1">
 
             <WebView
                 android:id="@+id/editor_web_view"
@@ -113,16 +128,76 @@
                 android:layout_height="match_parent"
                 android:visibility="gone" />
 
-            <TextView
+            <!-- Placeholder when no file is open -->
+            <LinearLayout
                 android:id="@+id/tv_editor_placeholder"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
+                android:background="@color/editor_bg"
                 android:gravity="center"
-                android:text="Open a folder or file to start editing"
-                android:textColor="@color/placeholder_text"
-                android:textSize="16sp"
-                android:background="@color/editor_bg" />
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="VSCode Android"
+                    android:textColor="#3C3C3C"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.05" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Abre el explorador y selecciona una carpeta"
+                    android:textColor="@color/placeholder_text"
+                    android:textSize="13sp" />
+            </LinearLayout>
         </FrameLayout>
+
+        <!-- Status Bar -->
+        <LinearLayout
+            android:id="@+id/status_bar"
+            android:layout_width="match_parent"
+            android:layout_height="22dp"
+            android:background="@color/statusbar_bg"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp">
+
+            <TextView
+                android:id="@+id/tv_status_branch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:drawablePadding="4dp"
+                android:text="No folder"
+                android:textColor="@color/statusbar_text"
+                android:textSize="11sp" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/tv_status_lang"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textColor="@color/statusbar_text"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/tv_status_encoding"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="UTF-8"
+                android:textColor="@color/statusbar_text"
+                android:textSize="11sp" />
+        </LinearLayout>
     </LinearLayout>
 
     <!-- Navigation Drawer (File Explorer) -->
@@ -139,26 +214,26 @@
             android:layout_height="wrap_content"
             android:background="@color/explorer_header_bg"
             android:orientation="vertical"
-            android:paddingTop="8dp">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="EXPLORER"
-                android:textColor="@color/explorer_header_text"
-                android:textSize="11sp"
-                android:letterSpacing="0.1"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:paddingBottom="4dp" />
+            android:paddingTop="12dp"
+            android:paddingBottom="4dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="end"
+                android:gravity="center_vertical"
+                android:paddingStart="16dp"
                 android:paddingEnd="4dp"
-                android:paddingBottom="4dp"
                 android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="EXPLORADOR"
+                    android:textColor="@color/explorer_header_text"
+                    android:textSize="11sp"
+                    android:letterSpacing="0.1"
+                    android:textStyle="bold" />
 
                 <ImageButton
                     android:id="@+id/btn_new_file"
@@ -194,9 +269,33 @@
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="Open Folder"
                     android:src="@drawable/ic_folder_open"
-                    android:tint="@color/explorer_icon" />
+                    android:tint="@color/accent" />
             </LinearLayout>
         </LinearLayout>
+
+        <!-- Explorer header bottom border -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/explorer_border" />
+
+        <!-- Current folder name -->
+        <TextView
+            android:id="@+id/tv_folder_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/explorer_bg"
+            android:paddingStart="16dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:text=""
+            android:textColor="@color/explorer_header_text"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:singleLine="true"
+            android:ellipsize="start"
+            android:visibility="gone" />
 
         <!-- File Tree -->
         <androidx.recyclerview.widget.RecyclerView
@@ -206,16 +305,33 @@
             android:layout_weight="1"
             android:clipToPadding="false" />
 
-        <TextView
+        <!-- Empty state -->
+        <LinearLayout
             android:id="@+id/tv_empty_explorer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:padding="16dp"
-            android:text="No folder opened\nTap the folder icon to open one"
-            android:textAlignment="center"
-            android:textColor="@color/placeholder_text"
-            android:textSize="13sp"
-            android:visibility="visible" />
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:visibility="visible">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Sin carpeta abierta"
+                android:textColor="#858585"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center"
+                android:text="Toca el ícono de carpeta\npara abrir una"
+                android:textAlignment="center"
+                android:textColor="@color/placeholder_text"
+                android:textSize="12sp" />
+        </LinearLayout>
     </LinearLayout>
 </androidx.drawerlayout.widget.DrawerLayout>
