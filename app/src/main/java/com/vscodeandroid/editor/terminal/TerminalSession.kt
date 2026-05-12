@@ -5,6 +5,7 @@ import android.webkit.WebView
 import java.io.InputStream
 import java.io.OutputStream
 import java.io.File
+import android.util.Base64
 
 class TerminalSession(
     private val webView: WebView,
@@ -47,10 +48,12 @@ class TerminalSession(
                         val n = inputStream.read(buffer)
                         if (n < 0) break
                         if (n > 0) {
-                            val text = String(buffer, 0, n, Charsets.UTF_8)
-                            val escaped = escapeForJs(text)
+                            val bytes = buffer.copyOf(n)
+                            val b64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
                             webView.post {
-                                webView.evaluateJavascript("receiveOutput('$escaped');", null)
+                                webView.evaluateJavascript(
+                                    "receiveOutputB64('$b64');", null
+                                )
                             }
                         }
                     }
@@ -100,12 +103,4 @@ class TerminalSession(
         } catch (e: Exception) { }
     }
 
-    private fun escapeForJs(text: String): String {
-        return text
-            .replace("\\", "\\\\")
-            .replace("'", "\\'")
-            .replace("\r", "\\r")
-            .replace("\n", "\\n")
-            .replace("`", "\\`")
-    }
 }

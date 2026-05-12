@@ -26,6 +26,11 @@ import com.vscodeandroid.editor.models.FileItem
 import com.vscodeandroid.editor.terminal.TerminalActivity
 import com.vscodeandroid.editor.utils.FileUtils
 import java.io.File
+import android.Manifest
+import android.content.pm.PackageManager
+import android.widget.Toast
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -33,6 +38,22 @@ class MainActivity : AppCompatActivity() {
     private lateinit var fileAdapter: FileAdapter
     private lateinit var tabAdapter: TabAdapter
     private lateinit var drawerToggle: ActionBarDrawerToggle
+    private lateinit var editorBridge: EditorBridge
+
+    companion object {
+        private const val REQUEST_STORAGE_PERMISSION = 100
+    }
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions.values.all { it }
+        if (granted) {
+            openFolderPicker()
+        } else {
+            Toast.makeText(this, "Se necesita permiso de almacenamiento para abrir carpetas", Toast.LENGTH_LONG).show()
+        }
+    }
 
     private val openFolderLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -67,6 +88,7 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         setSupportActionBar(binding.toolbar)
+        editorBridge = EditorBridge(viewModel)
         setupDrawer()
         setupFileExplorer()
         setupTabs()
@@ -109,7 +131,10 @@ class MainActivity : AppCompatActivity() {
         tabAdapter = TabAdapter(
             onTabClick = { tab -> viewModel.switchTab(tab) },
             onTabClose = { tab ->
-                if (tab.isModified) showUnsavedDialog(tab) else viewModel.closeTab(tab)
+                if (tab.isModified) showUnsavedDialog(tab) else {
+                    editorBridge.cancelPending(tab.id)
+                    viewModel.closeTab(tab)
+                }
             }
         )
         binding.rvTabs.apply {
@@ -128,7 +153,7 @@ class MainActivity : AppCompatActivity() {
                 loadWithOverviewMode = true
                 useWideViewPort = true
             }
-            addJavascriptInterface(EditorBridge(viewModel), "AndroidBridge")
+            addJavascriptInterface(editorBridge, "AndroidBridge")
             loadUrl("file:///android_asset/monaco/index.html")
         }
     }
@@ -422,8 +447,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openFolderPicker() {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-        openFolderLauncher.launch(intent)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Android 11+: use MANAGE_EXTERNAL_STORAGE or go directly with SAF
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+            openFolderLauncher.launch(intent)
+        } else {
+            // Android 6-10: request READ/WRITE_EXTERNAL_STORAGE at runtime
+            val readGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+            val writeGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+            if (readGranted && writeGranted) {
+                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+                openFolderLauncher.launch(intent)
+            } else {
+                requestPermissionLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.READ_EXTERNAL_STORAGE,
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE
+                    )
+                )
+            }
+        }
     }
 
     private fun getRealPathFromUri(uri: Uri): String? {
@@ -467,6 +510,11 @@ class MainActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         if (drawerToggle.onOptionsItemSelected(item)) return true
         return super.onOptionsItemSelected(item)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        editorBridge.cancelAll()
     }
 
     override fun onBackPressed() {

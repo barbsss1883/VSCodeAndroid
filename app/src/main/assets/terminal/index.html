@@ -104,6 +104,20 @@
             if (text) term.write(text);
         }
 
+        // Safe Base64 receiver — avoids JS injection from shell output
+        function receiveOutputB64(b64) {
+            try {
+                var binary = atob(b64);
+                var bytes = new Uint8Array(binary.length);
+                for (var i = 0; i < binary.length; i++) {
+                    bytes[i] = binary.charCodeAt(i);
+                }
+                term.write(bytes);
+            } catch(e) {
+                term.write('[decode error]\r\n');
+            }
+        }
+
         try { AndroidTerminal.log('xterm.js ready'); } catch(e) {}
     </script>
 </body>
