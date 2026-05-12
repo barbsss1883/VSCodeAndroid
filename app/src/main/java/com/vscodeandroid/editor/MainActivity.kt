@@ -3,7 +3,10 @@ package com.vscodeandroid.editor
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.provider.DocumentsContract
 import android.view.MenuItem
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
@@ -424,11 +427,31 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getRealPathFromUri(uri: Uri): String? {
-        val docFile = DocumentFile.fromTreeUri(this, uri) ?: return null
-        return getExternalFilesDir(null)?.let {
-            val segments = uri.pathSegments
-            val path = segments.lastOrNull()?.split(":")?.lastOrNull()
-            if (path != null) "/storage/emulated/0/$path" else it.absolutePath
+        return try {
+            if (DocumentsContract.isTreeUri(uri)) {
+                val docId = DocumentsContract.getTreeDocumentId(uri)
+                val parts = docId.split(":")
+                val volumeId = parts.getOrNull(0) ?: return null
+                val relativePath = parts.getOrNull(1) ?: ""
+
+                val basePath = when {
+                    volumeId.equals("primary", ignoreCase = true) ->
+                        Environment.getExternalStorageDirectory().absolutePath
+                    volumeId.equals("home", ignoreCase = true) ->
+                        Environment.getExternalStoragePublicDirectory(
+                            Environment.DIRECTORY_DOCUMENTS
+                        ).absolutePath
+                    else -> "/storage/$volumeId"
+                }
+
+                val resolvedPath = if (relativePath.isNotEmpty()) "$basePath/$relativePath" else basePath
+                val file = File(resolvedPath)
+                if (file.exists()) resolvedPath else null
+            } else {
+                uri.path
+            }
+        } catch (e: Exception) {
+            null
         }
     }
 
