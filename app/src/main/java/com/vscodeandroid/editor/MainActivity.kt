@@ -47,15 +47,31 @@ class MainActivity : AppCompatActivity() {
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             result.data?.data?.let { uri ->
-                contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                )
+                try {
+                    contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                    )
+                } catch (e: Exception) { /* permission already held */ }
+
+                // Try direct path first (works when MANAGE_EXTERNAL_STORAGE is granted)
                 val path = getRealPathFromUri(uri)
-                if (path != null) {
+                if (path != null && File(path).canRead()) {
                     viewModel.openFolder(File(path))
                 } else {
-                    Toast.makeText(this, "No se pudo acceder a esa carpeta", Toast.LENGTH_SHORT).show()
+                    // Fallback: copy SAF uri to a temp readable location isn't ideal,
+                    // so guide the user to grant full storage permission
+                    Toast.makeText(
+                        this,
+                        "Para acceso completo, otorga permiso de almacenamiento en Ajustes → Apps → VSCode Android",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+                        val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                            data = Uri.parse("package:$packageName")
+                        }
+                        startActivityForResult(intent, REQUEST_MANAGE_STORAGE)
+                    }
                 }
             }
         }
@@ -90,6 +106,21 @@ class MainActivity : AppCompatActivity() {
         val lastPath = viewModel.getLastOpenedPath()
         if (lastPath != null && File(lastPath).exists()) {
             viewModel.openFolder(File(lastPath))
+        }
+
+        // Request storage permission on first launch silently
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle("Permiso necesario")
+                .setMessage("VSCode Android necesita acceso completo al almacenamiento para abrir carpetas y archivos.\n\nActiva \"Permitir acceso a todos los archivos\" en la siguiente pantalla.")
+                .setPositiveButton("Configurar ahora") { _, _ ->
+                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                        data = Uri.parse("package:$packageName")
+                    }
+                    startActivityForResult(intent, REQUEST_MANAGE_STORAGE)
+                }
+                .setNegativeButton("Luego", null)
+                .show()
         }
     }
 
@@ -483,8 +514,20 @@ class MainActivity : AppCompatActivity() {
         val quickPaths = mutableListOf<Pair<String, String>>()
         quickPaths.add(Pair("📁  Almacenamiento interno", home))
 
-        // Common dev folders
-        listOf("Projects", "projects", "Dev", "dev", "Code", "code", "repos", "Repos").forEach { name ->
+        // Termux shared storage (symlink that IS accessible)
+        val termuxShared = File("/data/data/com.termux/files/home/storage/shared")
+        if (termuxShared.exists() && termuxShared.canRead()) {
+            quickPaths.add(Pair("🐧  Termux ~/storage/shared", termuxShared.absolutePath))
+        }
+        // Termux home via shared (accessible path)
+        val termuxHome = File(home, "Termux") // some setups symlink here
+        if (termuxHome.exists() && termuxHome.canRead()) {
+            quickPaths.add(Pair("🐧  Termux Home", termuxHome.absolutePath))
+        }
+
+        // Common dev folders on internal storage
+        listOf("Projects", "projects", "Dev", "dev", "Code", "code", "repos", "Repos",
+               "Bitacora57", "bitacora57", "VSCodeAndroid").forEach { name ->
             val f = File(home, name)
             if (f.exists() && f.isDirectory) quickPaths.add(Pair("📂  $name", f.absolutePath))
         }
@@ -510,11 +553,22 @@ class MainActivity : AppCompatActivity() {
                     }
                     else -> {
                         val folder = File(path)
-                        if (folder.exists() && folder.canRead()) {
-                            viewModel.openFolder(folder)
-                            binding.drawerLayout.closeDrawer(GravityCompat.START)
+                        if (folder.exists()) {
+                            if (folder.canRead()) {
+                                viewModel.openFolder(folder)
+                                binding.drawerLayout.closeDrawer(GravityCompat.START)
+                            } else {
+                                // No permission yet — send to settings
+                                Toast.makeText(this, "Sin acceso. Otorga permiso de almacenamiento primero.", Toast.LENGTH_LONG).show()
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                                        data = Uri.parse("package:$packageName")
+                                    }
+                                    startActivityForResult(intent, REQUEST_MANAGE_STORAGE)
+                                }
+                            }
                         } else {
-                            Toast.makeText(this, "No se puede acceder a: $path", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this, "La carpeta no existe: $path", Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
