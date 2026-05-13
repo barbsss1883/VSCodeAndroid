@@ -108,20 +108,8 @@ class MainActivity : AppCompatActivity() {
             viewModel.openFolder(File(lastPath))
         }
 
-        // Request storage permission on first launch silently
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
-            MaterialAlertDialogBuilder(this)
-                .setTitle("Permiso necesario")
-                .setMessage("VSCode Android necesita acceso completo al almacenamiento para abrir carpetas y archivos.\n\nActiva \"Permitir acceso a todos los archivos\" en la siguiente pantalla.")
-                .setPositiveButton("Configurar ahora") { _, _ ->
-                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                        data = Uri.parse("package:$packageName")
-                    }
-                    startActivityForResult(intent, REQUEST_MANAGE_STORAGE)
-                }
-                .setNegativeButton("Luego", null)
-                .show()
-        }
+        // Request storage permission on first launch
+        checkAndRequestStoragePermission()
     }
 
     private fun setupDrawer() {
@@ -484,6 +472,22 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun checkAndRequestStoragePermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle("Permiso necesario")
+                .setMessage("VSCode Android necesita acceso completo al almacenamiento.\n\nEn la siguiente pantalla, activa \"Permitir administrar todos los archivos\".")
+                .setPositiveButton("Configurar ahora") { _, _ ->
+                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                        data = Uri.parse("package:$packageName")
+                    }
+                    startActivityForResult(intent, REQUEST_MANAGE_STORAGE)
+                }
+                .setNegativeButton("Ahora no", null)
+                .show()
+        }
+    }
+
     private fun openFolderPicker() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (Environment.isExternalStorageManager()) {
@@ -603,11 +607,26 @@ class MainActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == REQUEST_MANAGE_STORAGE) {
+            // Settings never returns RESULT_OK — check permission state directly
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
+                Toast.makeText(this, "✓ Permiso otorgado. Selecciona una carpeta.", Toast.LENGTH_SHORT).show()
                 showFolderPickerDialog()
             } else {
-                Toast.makeText(this, "Permiso no otorgado. Puedes usar el selector del sistema.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Permiso no otorgado. Usa el selector del sistema o escribe la ruta.", Toast.LENGTH_LONG).show()
+                showFolderPickerDialog() // still show dialog so user can use manual path or SAF
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // If we came back from settings with permission now granted and no folder is open yet
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+            && Environment.isExternalStorageManager()
+            && viewModel.getLastOpenedPath() == null
+            && (viewModel.fileItems.value?.isEmpty() == true)) {
+            // Permission was just granted — subtly hint the user
+            binding.tvStatusBranch.text = "✓ Listo — abre una carpeta"
         }
     }
 
