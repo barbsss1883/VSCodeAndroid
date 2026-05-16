@@ -24,15 +24,23 @@
             android:exported="true"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:windowSoftInputMode="adjustResize">
+            
+            <!-- Filtro principal para lanzar la aplicación -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Handle files opened from other apps -->
+            
+            <!-- CORRECCIÓN: Filtro optimizado para recibir archivos de texto desde otras apps -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <action android:name="android.intent.action.EDIT" />
+                
                 <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                
+                <data android:scheme="content" />
+                <data android:scheme="file" />
                 <data android:mimeType="text/*" />
             </intent-filter>
         </activity>
