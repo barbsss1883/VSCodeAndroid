@@ -33,7 +33,6 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     private val _fileItems = MutableLiveData<List<FileItem>>(emptyList())
     val fileItems: LiveData<List<FileItem>> = _fileItems
 
-    // Emits error messages to show as toasts
     private val _errorEvent = MutableLiveData<String?>()
     val errorEvent: LiveData<String?> = _errorEvent
 
@@ -46,7 +45,10 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
             return
         }
         if (!dir.canRead()) {
-            _errorEvent.value = "Sin permiso para leer: ${dir.absolutePath}"
+            // CORRECCIÓN: mensaje de error más claro con instrucciones
+            _errorEvent.value = "Sin permiso para leer la carpeta.\n" +
+                "Ve a Ajustes → Apps → VSCode Android → Permisos → " +
+                "Archivos y medios → Permitir administrar todos los archivos"
             return
         }
         rootDir = dir
@@ -110,8 +112,11 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
             _errorEvent.value = "Archivo no encontrado: ${file.name}"
             return
         }
+        // CORRECCIÓN: mensaje de error de permisos detallado
         if (!file.canRead()) {
-            _errorEvent.value = "Sin permiso para leer: ${file.name}"
+            _errorEvent.value = "Sin permiso para leer \"${file.name}\".\n" +
+                "Ve a Ajustes → Apps → VSCode Android → Permisos → " +
+                "Archivos y medios → Permitir administrar todos los archivos"
             return
         }
 
@@ -123,9 +128,18 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
             return
         }
 
-        // Read file off main thread
         viewModelScope.launch(Dispatchers.IO) {
             val content = FileUtils.readFile(file)
+            // CORRECCIÓN: si readFile devuelve vacío en un archivo que debería tener contenido,
+            // verificar si fue un error de permisos en tiempo de lectura
+            if (content.isEmpty() && file.length() > 0) {
+                withContext(Dispatchers.Main) {
+                    _errorEvent.value = "No se pudo leer \"${file.name}\". " +
+                        "Verifica los permisos de almacenamiento en Ajustes."
+                }
+                return@launch
+            }
+
             val extension = file.extension
             val language = FileUtils.getLanguageFromExtension(extension)
             val tab = EditorTab(file = file, content = content, language = language)
@@ -164,7 +178,9 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
                         _activeTab.value = tabs[idx]
                     }
                 } else {
-                    _errorEvent.value = "Error al guardar: ${tab.file.name}"
+                    // CORRECCIÓN: mensaje de error de escritura más descriptivo
+                    _errorEvent.value = "No se pudo guardar \"${tab.file.name}\". " +
+                        "Verifica que el archivo no sea de solo lectura y que tengas permiso de escritura."
                 }
             }
         }

@@ -54,13 +54,10 @@ class MainActivity : AppCompatActivity() {
                     )
                 } catch (e: Exception) { /* permission already held */ }
 
-                // Try direct path first (works when MANAGE_EXTERNAL_STORAGE is granted)
                 val path = getRealPathFromUri(uri)
                 if (path != null && File(path).canRead()) {
                     viewModel.openFolder(File(path))
                 } else {
-                    // Fallback: copy SAF uri to a temp readable location isn't ideal,
-                    // so guide the user to grant full storage permission
                     Toast.makeText(
                         this,
                         "Para acceso completo, otorga permiso de almacenamiento en Ajustes → Apps → VSCode Android",
@@ -110,6 +107,57 @@ class MainActivity : AppCompatActivity() {
 
         // Request storage permission on first launch
         checkAndRequestStoragePermission()
+
+        // CORRECCIÓN: Manejar apertura de archivos desde otras apps
+        handleIncomingIntent(intent)
+    }
+
+    // CORRECCIÓN: Manejar intents cuando la app ya está abierta
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        handleIncomingIntent(intent)
+    }
+
+    /**
+     * CORRECCIÓN: Procesa ACTION_VIEW / ACTION_EDIT recibidos desde otras apps.
+     * Soporta URIs de tipo content:// y file://.
+     */
+    private fun handleIncomingIntent(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_VIEW && intent?.action != Intent.ACTION_EDIT) return
+        val uri = intent.data ?: return
+
+        val path = getRealPathFromUri(uri)
+        if (path != null) {
+            val file = File(path)
+            if (file.exists() && file.canRead()) {
+                viewModel.openFolder(file.parentFile ?: file)
+                viewModel.openFile(file)
+                binding.drawerLayout.closeDrawer(GravityCompat.START)
+            } else {
+                Toast.makeText(
+                    this,
+                    "Sin permiso para leer el archivo. Ve a Ajustes → Apps → VSCode Android → Permisos → Archivos y medios → Permitir administrar todos los archivos",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        } else {
+            // Fallback para URIs content:// sin ruta real (ej. desde Drive, email, etc.)
+            try {
+                val inputStream = contentResolver.openInputStream(uri)
+                    ?: run {
+                        Toast.makeText(this, "No se pudo leer el archivo compartido", Toast.LENGTH_SHORT).show()
+                        return
+                    }
+                val fileName = DocumentFile.fromSingleUri(this, uri)?.name ?: "archivo_temp.txt"
+                val tmpFile = File(cacheDir, fileName)
+                tmpFile.outputStream().use { out -> inputStream.copyTo(out) }
+                viewModel.openFolder(cacheDir)
+                viewModel.openFile(tmpFile)
+                binding.drawerLayout.closeDrawer(GravityCompat.START)
+            } catch (e: Exception) {
+                Toast.makeText(this, "No se pudo abrir: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     private fun setupDrawer() {
@@ -173,7 +221,6 @@ class MainActivity : AppCompatActivity() {
             fileAdapter.updateItems(items)
             val isEmpty = items.isEmpty()
             binding.tvEmptyExplorer.visibility = if (isEmpty) View.VISIBLE else View.GONE
-            // Show folder name in explorer header
             val lastPath = viewModel.getLastOpenedPath()
             if (lastPath != null && !isEmpty) {
                 binding.tvFolderName.text = File(lastPath).name.uppercase()
@@ -206,7 +253,6 @@ class MainActivity : AppCompatActivity() {
                 binding.tvEditorPlaceholder.visibility = View.GONE
                 binding.editorWebView.visibility = View.VISIBLE
                 supportActionBar?.subtitle = tab.file.name
-                // Update status bar
                 binding.tvStatusLang.text = tab.language.uppercase()
                 binding.tvStatusEncoding.text = "UTF-8"
             } else {
@@ -223,6 +269,14 @@ class MainActivity : AppCompatActivity() {
         viewModel.settings.observe(this) { settings ->
             val js = "applySettings(${com.google.gson.Gson().toJson(settings)});"
             binding.editorWebView.evaluateJavascript(js, null)
+        }
+
+        // CORRECCIÓN: Observar errores del ViewModel y mostrarlos como Toast
+        viewModel.errorEvent.observe(this) { error ->
+            if (!error.isNullOrEmpty()) {
+                Toast.makeText(this, error, Toast.LENGTH_LONG).show()
+                viewModel.clearError()
+            }
         }
     }
 
@@ -483,7 +537,15 @@ class MainActivity : AppCompatActivity() {
                     }
                     startActivityForResult(intent, REQUEST_MANAGE_STORAGE)
                 }
-                .setNegativeButton("Ahora no", null)
+                // CORRECCIÓN: Botón negativo ahora advierte sobre la consecuencia
+                .setNegativeButton("Ahora no") { _, _ ->
+                    Toast.makeText(
+                        this,
+                        "Sin permiso de almacenamiento la app no podrá abrir archivos.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                .setCancelable(false)
                 .show()
         }
     }
@@ -493,7 +555,6 @@ class MainActivity : AppCompatActivity() {
             if (Environment.isExternalStorageManager()) {
                 showFolderPickerDialog()
             } else {
-                // Ask for MANAGE_EXTERNAL_STORAGE — one time, full access
                 MaterialAlertDialogBuilder(this)
                     .setTitle("Permiso de almacenamiento")
                     .setMessage("Para acceder a tus archivos, VSCode Android necesita permiso de administrador de almacenamiento.\n\nEn la siguiente pantalla, activa \"Permitir acceso a todos los archivos\".")
@@ -518,25 +579,21 @@ class MainActivity : AppCompatActivity() {
         val quickPaths = mutableListOf<Pair<String, String>>()
         quickPaths.add(Pair("📁  Almacenamiento interno", home))
 
-        // Termux shared storage (symlink that IS accessible)
         val termuxShared = File("/data/data/com.termux/files/home/storage/shared")
         if (termuxShared.exists() && termuxShared.canRead()) {
             quickPaths.add(Pair("🐧  Termux ~/storage/shared", termuxShared.absolutePath))
         }
-        // Termux home via shared (accessible path)
-        val termuxHome = File(home, "Termux") // some setups symlink here
+        val termuxHome = File(home, "Termux")
         if (termuxHome.exists() && termuxHome.canRead()) {
             quickPaths.add(Pair("🐧  Termux Home", termuxHome.absolutePath))
         }
 
-        // Common dev folders on internal storage
         listOf("Projects", "projects", "Dev", "dev", "Code", "code", "repos", "Repos",
                "Bitacora57", "bitacora57", "VSCodeAndroid").forEach { name ->
             val f = File(home, name)
             if (f.exists() && f.isDirectory) quickPaths.add(Pair("📂  $name", f.absolutePath))
         }
 
-        // Downloads, Documents
         File(home, "Download").takeIf { it.exists() }?.let { quickPaths.add(Pair("⬇️  Descargas", it.absolutePath)) }
         File(home, "Documents").takeIf { it.exists() }?.let { quickPaths.add(Pair("📄  Documentos", it.absolutePath)) }
 
@@ -562,7 +619,6 @@ class MainActivity : AppCompatActivity() {
                                 viewModel.openFolder(folder)
                                 binding.drawerLayout.closeDrawer(GravityCompat.START)
                             } else {
-                                // No permission yet — send to settings
                                 Toast.makeText(this, "Sin acceso. Otorga permiso de almacenamiento primero.", Toast.LENGTH_LONG).show()
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                                     val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
@@ -607,25 +663,22 @@ class MainActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == REQUEST_MANAGE_STORAGE) {
-            // Settings never returns RESULT_OK — check permission state directly
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
                 Toast.makeText(this, "✓ Permiso otorgado. Selecciona una carpeta.", Toast.LENGTH_SHORT).show()
                 showFolderPickerDialog()
             } else {
                 Toast.makeText(this, "Permiso no otorgado. Usa el selector del sistema o escribe la ruta.", Toast.LENGTH_LONG).show()
-                showFolderPickerDialog() // still show dialog so user can use manual path or SAF
+                showFolderPickerDialog()
             }
         }
     }
 
     override fun onResume() {
         super.onResume()
-        // If we came back from settings with permission now granted and no folder is open yet
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
             && Environment.isExternalStorageManager()
             && viewModel.getLastOpenedPath() == null
             && (viewModel.fileItems.value?.isEmpty() == true)) {
-            // Permission was just granted — subtly hint the user
             binding.tvStatusBranch.text = "✓ Listo — abre una carpeta"
         }
     }
@@ -637,20 +690,37 @@ class MainActivity : AppCompatActivity() {
                 val parts = docId.split(":")
                 val volumeId = parts.getOrNull(0) ?: return null
                 val relativePath = parts.getOrNull(1) ?: ""
-
                 val basePath = when {
                     volumeId.equals("primary", ignoreCase = true) ->
                         Environment.getExternalStorageDirectory().absolutePath
                     volumeId.equals("home", ignoreCase = true) ->
-                        Environment.getExternalStoragePublicDirectory(
-                            Environment.DIRECTORY_DOCUMENTS
-                        ).absolutePath
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS).absolutePath
                     else -> "/storage/$volumeId"
                 }
-
                 val resolvedPath = if (relativePath.isNotEmpty()) "$basePath/$relativePath" else basePath
                 val file = File(resolvedPath)
                 if (file.exists()) resolvedPath else null
+            } else if (uri.scheme == "file") {
+                // CORRECCIÓN: manejar URIs file:// directamente
+                uri.path
+            } else if (uri.scheme == "content") {
+                // CORRECCIÓN: intentar obtener la ruta real desde content URI
+                val docId = try { DocumentsContract.getDocumentId(uri) } catch (e: Exception) { null }
+                if (docId != null) {
+                    val parts = docId.split(":")
+                    val volumeId = parts.getOrNull(0) ?: return null
+                    val relativePath = parts.getOrNull(1) ?: return null
+                    val basePath = when {
+                        volumeId.equals("primary", ignoreCase = true) ->
+                            Environment.getExternalStorageDirectory().absolutePath
+                        else -> "/storage/$volumeId"
+                    }
+                    val resolvedPath = "$basePath/$relativePath"
+                    val file = File(resolvedPath)
+                    if (file.exists() && file.canRead()) resolvedPath else null
+                } else {
+                    uri.path
+                }
             } else {
                 uri.path
             }
