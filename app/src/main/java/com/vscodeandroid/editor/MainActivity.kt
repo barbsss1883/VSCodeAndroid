@@ -31,6 +31,8 @@ import com.vscodeandroid.editor.utils.FileUtils
 import java.io.File
 import android.content.Context;
 import java.io.IOException;
+import androidx.documentfile.provider.DocumentFile
+import androidx.activity.result.contract.ActivityResultContracts
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -44,17 +46,33 @@ class MainActivity : AppCompatActivity() {
         private const val REQUEST_MANAGE_STORAGE = 200
     }
 
-    private val openFolderLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            result.data?.data?.let { uri ->
-                try {
-                    contentResolver.takePersistableUriPermission(
-                        uri,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                    )
-                } catch (e: Exception) { /* permission already held */ }
+    private val openFolderLauncher =
+    registerForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+
+        if (uri != null) {
+
+            try {
+
+                contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                            Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+
+                val root =
+                    DocumentFile.fromTreeUri(this, uri)
+
+                if (root != null) {
+                    viewModel.openDocumentTree(root)
+                }
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 
                 val path = getRealPathFromUri(uri)
                 if (path != null && File(path).canRead()) {
