@@ -29,6 +29,8 @@ import com.vscodeandroid.editor.models.FileItem
 import com.vscodeandroid.editor.terminal.TerminalActivity
 import com.vscodeandroid.editor.utils.FileUtils
 import java.io.File
+import android.content.Context;
+import java.io.IOException;
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -753,4 +755,17 @@ class MainActivity : AppCompatActivity() {
             binding.drawerLayout.closeDrawer(GravityCompat.START)
         } else super.onBackPressed()
     }
+
+
+    // [AID_START: file_write]
+    private fun writeToFile(context: Context, fileName: String, data: String) {
+        try {
+            context.openFileOutput(fileName, Context.MODE_PRIVATE).use { fos ->
+                fos.write(data.toByteArray())
+            }
+        } catch (e: IOException) {
+            e.printStackTrace()
+        }
+    }
+    // [AID_END: file_write]
 }
